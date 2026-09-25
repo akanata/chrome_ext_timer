@@ -29,7 +29,7 @@ async function init() {
     chrome.storage.sync.get(TIMES_UP_DEFAULTS),
     chrome.tabGroups.query({}),
   ]);
-  timers = sync.timers;
+  timers = timesUpWithDefaults(sync.timers);
   theme = sync.theme;
   themeSelect.value = theme;
   document.documentElement.dataset.theme = theme;
@@ -53,7 +53,7 @@ function render() {
     note("Also used by groups without their own timer."),
     timerFields(timers.default, (changes, restart) => {
       timers.default = { ...timers.default, ...changes };
-      save(restart ? null : undefined);
+      save(restart ? timesUpCycleKey(null) : undefined);
     })
   );
   container.append(ungrouped);
@@ -67,6 +67,66 @@ function render() {
   for (const title of Object.keys(timers.groups)) {
     if (!openTitles.has(title)) container.append(groupSection(title, null, true));
   }
+
+  for (const id of Object.keys(TIMES_UP_CATEGORY_NAMES)) {
+    container.append(categorySection(id));
+  }
+}
+
+// Categories are collapsible and start closed. Which ones are open is a
+// per-browser convenience, so it lives in localStorage rather than sync.
+function categorySection(id) {
+  const el = section(TIMES_UP_CATEGORY_NAMES[id], TIMES_UP_CATEGORY_COLORS[id], true);
+  const category = timers.categories[id];
+
+  const openKey = `categoryOpen:${id}`;
+  try {
+    el.open = localStorage.getItem(openKey) === "true";
+  } catch {}
+  el.addEventListener("toggle", () => {
+    try {
+      localStorage.setItem(openKey, String(el.open));
+    } catch {}
+  });
+
+  const sites = document.createElement("textarea");
+  sites.rows = 5;
+  sites.spellcheck = false;
+  sites.placeholder = "example.com";
+  sites.value = category.sites.join("\n");
+  sites.addEventListener("change", () => {
+    const parsed = parseSites(sites.value);
+    sites.value = parsed.join("\n");
+    timers.categories[id] = { ...timers.categories[id], sites: parsed };
+    save(); // Tabs pick up the new list; nothing to restart.
+  });
+
+  el.append(
+    note("Ungrouped tabs on these sites. One site per line; subdomains are included."),
+    timerFields(category, (changes, restart) => {
+      timers.categories[id] = { ...timers.categories[id], ...changes };
+      save(restart ? timesUpCategoryCycleKey(id) : undefined);
+    }),
+    sites
+  );
+  return el;
+}
+
+// Accepts bare domains or pasted URLs, e.g. "https://www.reddit.com/r/foo"
+// becomes "reddit.com". Splits on whitespace or commas and removes duplicates.
+function parseSites(text) {
+  const sites = text
+    .split(/[\s,]+/)
+    .map((site) =>
+      site
+        .toLowerCase()
+        .replace(/^[a-z][a-z0-9+.-]*:\/\//, "")
+        .replace(/[/?#:].*$/, "")
+        .replace(/^www\./, "")
+        .replace(/\.$/, "")
+    )
+    .filter(Boolean);
+  return [...new Set(sites)];
 }
 
 function groupSection(title, color, closed = false) {
@@ -87,7 +147,7 @@ function groupSection(title, color, closed = false) {
   checkbox.addEventListener("change", () => {
     if (checkbox.checked) {
       timers.groups[title] = { ...timers.default };
-      save(title);
+      save(timesUpCycleKey(title));
     } else {
       delete timers.groups[title];
       save(); // Tabs fall back to the default timer; nothing to restart.
@@ -101,17 +161,18 @@ function groupSection(title, color, closed = false) {
     el.append(
       timerFields(custom, (changes, restart) => {
         timers.groups[title] = { ...timers.groups[title], ...changes };
-        save(restart ? title : undefined);
+        save(restart ? timesUpCycleKey(title) : undefined);
       })
     );
   }
   return el;
 }
 
-// `colorName` is a Chrome tab group colour name, or null for no dot.
-function section(name, colorName) {
-  const el = document.createElement("section");
-  const header = document.createElement("header");
+// `colorName` is a TIMES_UP_GROUP_COLORS name, or null for no dot. A
+// collapsible section is a <details> whose header is its <summary>.
+function section(name, colorName, collapsible = false) {
+  const el = document.createElement(collapsible ? "details" : "section");
+  const header = document.createElement(collapsible ? "summary" : "header");
   if (colorName) {
     const dot = document.createElement("span");
     dot.className = "dot";
@@ -208,16 +269,22 @@ function wrap(...parts) {
   return span;
 }
 
-// Saves all timers. If `restartTitle` is given (null = the default timer),
-// restart that timer's cycle so its tabs begin the new durations together.
-// Restart first: a just-started cycle is in its countdown whatever the
-// durations, so tabs never see new durations applied to the old start.
-async function save(restartTitle) {
-  if (restartTitle !== undefined) {
-    await chrome.storage.local.set({ [timesUpCycleKey(restartTitle)]: Date.now() });
+// Saves all timers. If `restartCycleKey` is given, restart that timer's cycle
+// so its tabs begin the new durations together. Restart first: a just-started
+// cycle is in its countdown whatever the durations, so tabs never see new
+// durations applied to the old start.
+async function save(restartCycleKey) {
+  if (restartCycleKey !== undefined) {
+    await chrome.storage.local.set({ [restartCycleKey]: Date.now() });
   }
-  await chrome.storage.sync.set({ timers });
-  showStatus(restartTitle !== undefined ? "Saved. Timer restarted." : "Saved.", "var(--ok)");
+  try {
+    await chrome.storage.sync.set({ timers });
+  } catch (error) {
+    // e.g. over sync storage's ~8 KB per-item limit with very long site lists.
+    showStatus(`Couldn't save: ${error.message}`, "var(--error)");
+    return;
+  }
+  showStatus(restartCycleKey !== undefined ? "Saved. Timer restarted." : "Saved.", "var(--ok)");
 }
 
 function toWholeNumber(value) {

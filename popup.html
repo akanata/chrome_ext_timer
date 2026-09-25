@@ -60,15 +60,41 @@
         width: 100%;
         box-sizing: border-box;
       }
-      section {
+      textarea {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        margin-top: 8px;
+        font: 12px ui-monospace, monospace;
+        padding: 4px;
+        resize: vertical;
+      }
+      section,
+      details {
         border-top: 1px solid var(--border);
         padding: 10px 0;
       }
-      header {
+      header,
+      summary {
         display: flex;
         align-items: center;
         gap: 6px;
         font-weight: 600;
+      }
+      summary {
+        cursor: pointer;
+        list-style: none;
+      }
+      summary::-webkit-details-marker {
+        display: none;
+      }
+      summary::before {
+        content: "▸";
+        width: 10px;
+        color: var(--muted);
+      }
+      details[open] > summary::before {
+        content: "▾";
       }
       .dot {
         width: 10px;

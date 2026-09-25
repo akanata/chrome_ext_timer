@@ -87,7 +87,7 @@
     chrome.storage.local.get(null),
     chrome.runtime.sendMessage({ type: "getGroup" }),
   ]).then(([sync, local, tabGroup]) => {
-    timers = sync.timers;
+    timers = timesUpWithDefaults(sync.timers);
     theme = sync.theme;
     cycleStarts = local;
     group = tabGroup ?? null;
@@ -103,7 +103,8 @@
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "sync" && changes.timers?.newValue) {
-      timers = changes.timers.newValue;
+      timers = timesUpWithDefaults(changes.timers.newValue);
+      applyColors(); // A site list change can move this tab into a category.
     }
     if (area === "sync" && changes.theme?.newValue) {
       theme = changes.theme.newValue;
@@ -126,29 +127,41 @@
     tick();
   });
 
-  // A group with its own settings has its own timer; everything else shares
-  // the default one.
+  // A group with its own settings has its own timer, and ungrouped tabs on a
+  // category's sites use that category's timer. Everything else shares the
+  // default one.
   function currentTimer() {
     const title = group?.title ?? null;
     const custom = title !== null ? timers.groups[title] : undefined;
-    return custom
-      ? { key: timesUpCycleKey(title), settings: custom }
-      : { key: timesUpCycleKey(null), settings: timers.default };
+    if (custom) return { key: timesUpCycleKey(title), settings: custom };
+
+    const category = currentCategory();
+    if (category) {
+      return { key: timesUpCategoryCycleKey(category), settings: timers.categories[category] };
+    }
+    return { key: timesUpCycleKey(null), settings: timers.default };
   }
 
-  // The timer badge and message take the tab group's colour. For ungrouped
-  // tabs the badge is black (light in dark mode) and the message is white,
-  // which isn't a group colour and stands out inside its black outline. Dark
-  // mode uses Chrome's lighter shades, so the badge text flips to dark to
-  // stay readable.
+  // Categories only apply to ungrouped tabs.
+  function currentCategory() {
+    return group === null ? timesUpCategoryFor(timers, location.hostname) : null;
+  }
+
+  // The timer badge and message take the tab group's or category's colour.
+  // Other ungrouped tabs get a black badge (light in dark mode) and a white
+  // message, which isn't a group colour and stands out inside its black
+  // outline. Dark mode uses lighter shades, so the badge text flips to dark
+  // to stay readable.
   function applyColors() {
     const dark = timesUpIsDark(theme);
-    const color = timesUpGroupColor(group?.color, dark);
+    const category = currentCategory();
+    const colorName = group ? group.color : category && TIMES_UP_CATEGORY_COLORS[category];
+    const color = timesUpGroupColor(colorName, dark);
 
     badge.style.background = color;
     badge.style.color = dark ? "#202124" : "#fff";
     overlay.style.background = dark ? "#202124" : "#fff";
-    message.style.color = group ? color : "#fff";
+    message.style.color = colorName ? color : "#fff";
     resetDisplay.style.color = dark ? "#9aa0a6" : "#5f6368";
   }
 
