@@ -44,15 +44,21 @@
         font-size: 15px;
         margin: 0 0 12px;
       }
-      .appearance {
+      .setting {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 12px;
+        gap: 8px;
+        margin-bottom: 10px;
       }
-      select {
+      select,
+      input[type="text"] {
         font: inherit;
         padding: 2px 4px;
+      }
+      input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
       }
       section {
         border-top: 1px solid var(--border);
@@ -114,7 +120,7 @@
   </head>
   <body>
     <h1>TIME OUT</h1>
-    <label class="appearance">
+    <label class="setting">
       Appearance
       <select id="theme">
         <option value="system">System</option>

@@ -35,9 +35,17 @@
       .overlay.shown {
         display: flex;
       }
+      /* GTA "WASTED" style: a heavy retro face with a thick black outline.
+         The outline is painted under the fill so it doesn't eat into it. */
       .message {
-        font: 900 clamp(48px, 12vw, 200px)/1 system-ui, sans-serif;
+        font: 400 clamp(48px, 12vw, 200px)/1.1 "TimeOut Bowlby One", system-ui, sans-serif;
+        font-synthesis: none;
+        -webkit-text-stroke: 0.08em #000;
+        paint-order: stroke fill;
+        text-shadow: 0.03em 0.05em 0 rgba(0, 0, 0, 0.35);
         text-align: center;
+        padding: 0 16px;
+        overflow-wrap: anywhere;
       }
       .reset {
         margin-top: 24px;
@@ -48,7 +56,7 @@
     </style>
     <div class="badge"></div>
     <div class="overlay" role="alert">
-      <div class="message">TIME OUT</div>
+      <div class="message"></div>
       <div class="reset"></div>
     </div>
   `;
@@ -56,6 +64,16 @@
   const overlay = shadow.querySelector(".overlay");
   const message = shadow.querySelector(".message");
   const resetDisplay = shadow.querySelector(".reset");
+
+  // Load the bundled font from bytes rather than a URL, so the page's content
+  // security policy can't block it. Fonts added to the document also apply
+  // inside our shadow root. A unique family name avoids clashing with a page
+  // that uses Bowlby One itself.
+  fetch(chrome.runtime.getURL("fonts/BowlbyOne-Regular.ttf"))
+    .then((response) => response.arrayBuffer())
+    .then((data) => new FontFace("TimeOut Bowlby One", data).load())
+    .then((face) => document.fonts.add(face))
+    .catch(() => {}); // Fall back to the system font.
 
   let ready = false;
   let timers = TIMES_UP_DEFAULTS.timers;
@@ -114,13 +132,15 @@
     const title = group?.title ?? null;
     const custom = title !== null ? timers.groups[title] : undefined;
     return custom
-      ? { key: timesUpCycleKey(title), durations: custom }
-      : { key: timesUpCycleKey(null), durations: timers.default };
+      ? { key: timesUpCycleKey(title), settings: custom }
+      : { key: timesUpCycleKey(null), settings: timers.default };
   }
 
-  // The timer badge and TIME OUT take the tab group's colour, or black (white
-  // in dark mode) for ungrouped tabs. Dark mode uses Chrome's lighter shades,
-  // so the badge text flips to dark to stay readable.
+  // The timer badge and message take the tab group's colour. For ungrouped
+  // tabs the badge is black (light in dark mode) and the message is white,
+  // which isn't a group colour and stands out inside its black outline. Dark
+  // mode uses Chrome's lighter shades, so the badge text flips to dark to
+  // stay readable.
   function applyColors() {
     const dark = timesUpIsDark(theme);
     const color = timesUpGroupColor(group?.color, dark);
@@ -128,15 +148,24 @@
     badge.style.background = color;
     badge.style.color = dark ? "#202124" : "#fff";
     overlay.style.background = dark ? "#202124" : "#fff";
-    message.style.color = color;
+    message.style.color = group ? color : "#fff";
     resetDisplay.style.color = dark ? "#9aa0a6" : "#5f6368";
+  }
+
+  // Also used as the tab title while the message is shown.
+  function setMessage(text) {
+    text ||= TIMES_UP_DEFAULT_MESSAGE;
+    if (message.textContent === text) return;
+    message.textContent = text;
+    if (saved) document.title = text;
   }
 
   // Work out where we are in the shared countdown / TIME OUT cycle from the
   // clock alone, so every tab agrees and throttled background tabs catch up.
   function tick() {
     if (!ready) return;
-    const { key, durations } = currentTimer();
+    const { key, settings } = currentTimer();
+    setMessage(settings.message);
     let cycleStart = cycleStarts[key];
     if (cycleStart === undefined) {
       // First tab on this timer since it was cleared: start its cycle.
@@ -144,8 +173,8 @@
       chrome.storage.local.set({ [key]: cycleStart });
     }
 
-    const countdownMs = durations.countdownSeconds * 1000;
-    const cycleMs = countdownMs + durations.timesUpSeconds * 1000;
+    const countdownMs = settings.countdownSeconds * 1000;
+    const cycleMs = countdownMs + settings.timesUpSeconds * 1000;
     const elapsed = (((Date.now() - cycleStart) % cycleMs) + cycleMs) % cycleMs;
 
     if (elapsed < countdownMs) {
@@ -181,7 +210,7 @@
     if (document.body) document.body.inert = true;
     root.style.setProperty("overflow", "hidden", "important");
     for (const media of saved.pausedMedia) media.pause();
-    document.title = "TIME OUT";
+    document.title = message.textContent;
 
     badge.hidden = true;
     overlay.classList.add("shown");

@@ -11,6 +11,12 @@
     "default_title": "TIME OUT settings",
     "default_popup": "popup.html"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["fonts/BowlbyOne-Regular.ttf"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "content_scripts": [
     {
       "matches": ["<all_urls>"],

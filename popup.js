@@ -51,9 +51,9 @@ function render() {
   const ungrouped = section("Ungrouped tabs", null);
   ungrouped.append(
     note("Also used by groups without their own timer."),
-    durationFields(timers.default, (durations) => {
-      timers.default = durations;
-      save(null);
+    timerFields(timers.default, (changes, restart) => {
+      timers.default = { ...timers.default, ...changes };
+      save(restart ? null : undefined);
     })
   );
   container.append(ungrouped);
@@ -99,9 +99,9 @@ function groupSection(title, color, closed = false) {
 
   if (custom) {
     el.append(
-      durationFields(custom, (durations) => {
-        timers.groups[title] = durations;
-        save(title);
+      timerFields(custom, (changes, restart) => {
+        timers.groups[title] = { ...timers.groups[title], ...changes };
+        save(restart ? title : undefined);
       })
     );
   }
@@ -134,21 +134,38 @@ function note(text) {
   return p;
 }
 
-function durationFields(durations, onChange) {
+// `onChange(changes, restart)` receives the changed settings, and whether the
+// timer should restart (duration changes do; message changes don't).
+function timerFields(timer, onChange) {
   const fields = document.createElement("div");
   fields.className = "fields";
 
-  const countdownMin = numberInput(Math.floor(durations.countdownSeconds / 60));
-  const countdownSec = numberInput(durations.countdownSeconds % 60, 59);
-  const timesUpMin = numberInput(Math.floor(durations.timesUpSeconds / 60));
-  const timesUpSec = numberInput(durations.timesUpSeconds % 60, 59);
+  const countdownMin = numberInput(Math.floor(timer.countdownSeconds / 60));
+  const countdownSec = numberInput(timer.countdownSeconds % 60, 59);
+  const timesUpMin = numberInput(Math.floor(timer.timesUpSeconds / 60));
+  const timesUpSec = numberInput(timer.timesUpSeconds % 60, 59);
+
+  const messageInput = document.createElement("input");
+  messageInput.type = "text";
+  messageInput.maxLength = 100;
+  messageInput.placeholder = TIMES_UP_DEFAULT_MESSAGE;
+  messageInput.value = timer.message || TIMES_UP_DEFAULT_MESSAGE;
 
   fields.append(
     "Timer",
     wrap(countdownMin, "min", countdownSec, "sec"),
-    "TIME OUT for",
-    wrap(timesUpMin, "min", timesUpSec, "sec")
+    "Show for",
+    wrap(timesUpMin, "min", timesUpSec, "sec"),
+    "Message",
+    messageInput
   );
+
+  // A blank message goes back to the default.
+  messageInput.addEventListener("change", () => {
+    const message = messageInput.value.trim() || TIMES_UP_DEFAULT_MESSAGE;
+    messageInput.value = message;
+    onChange({ message }, false);
+  });
 
   const update = () => {
     const countdownSeconds =
@@ -167,7 +184,7 @@ function durationFields(durations, onChange) {
     timesUpMin.value = Math.floor(timesUpSeconds / 60);
     timesUpSec.value = timesUpSeconds % 60;
 
-    onChange({ countdownSeconds, timesUpSeconds });
+    onChange({ countdownSeconds, timesUpSeconds }, true);
   };
   for (const input of [countdownMin, countdownSec, timesUpMin, timesUpSec]) {
     input.addEventListener("change", update);

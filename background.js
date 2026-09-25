@@ -30,6 +30,17 @@ chrome.runtime.onInstalled.addListener(async () => {
     });
   }
   await chrome.storage.sync.remove(["countdownSeconds", "timesUpSeconds"]);
+
+  // Move a single, shared message into each timer.
+  const { message, timers } = await chrome.storage.sync.get(["message", "timers"]);
+  if (message !== undefined && timers !== undefined) {
+    for (const timer of [timers.default, ...Object.values(timers.groups)]) {
+      timer.message ??= message;
+    }
+    await chrome.storage.sync.set({ timers });
+  }
+  await chrome.storage.sync.remove("message");
+
   await restartAllCycles();
 });
 

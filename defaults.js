@@ -2,10 +2,12 @@
 
 // "default" covers ungrouped tabs and any tab group without its own timer.
 // "groups" maps a tab group's title to that group's own timer.
-// "theme" is "system", "light" or "dark".
+// Each timer's "message" is shown when its time's up. "theme" is "system",
+// "light" or "dark".
+var TIMES_UP_DEFAULT_MESSAGE = "TIME OUT";
 var TIMES_UP_DEFAULTS = {
   timers: {
-    default: { countdownSeconds: 60, timesUpSeconds: 30 },
+    default: { countdownSeconds: 60, timesUpSeconds: 30, message: TIMES_UP_DEFAULT_MESSAGE },
     groups: {},
   },
   theme: "system",
