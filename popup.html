@@ -1,0 +1,131 @@
+<!doctype html>
+<html data-theme="system">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root {
+        --bg: #fff;
+        --fg: #202124;
+        --muted: #5f6368;
+        --border: #dadce0;
+        --ok: #188038;
+        --error: #d93025;
+        color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root[data-theme="system"] {
+          --bg: #202124;
+          --fg: #e8eaed;
+          --muted: #9aa0a6;
+          --border: #3c4043;
+          --ok: #81c995;
+          --error: #f28b82;
+          color-scheme: dark;
+        }
+      }
+      :root[data-theme="dark"] {
+        --bg: #202124;
+        --fg: #e8eaed;
+        --muted: #9aa0a6;
+        --border: #3c4043;
+        --ok: #81c995;
+        --error: #f28b82;
+        color-scheme: dark;
+      }
+      body {
+        font: 14px system-ui, sans-serif;
+        margin: 0;
+        padding: 14px 16px;
+        width: 300px;
+        background: var(--bg);
+        color: var(--fg);
+      }
+      h1 {
+        font-size: 15px;
+        margin: 0 0 12px;
+      }
+      .appearance {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      select {
+        font: inherit;
+        padding: 2px 4px;
+      }
+      section {
+        border-top: 1px solid var(--border);
+        padding: 10px 0;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 600;
+      }
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex: none;
+      }
+      .name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .toggle {
+        font-weight: normal;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 12px;
+        margin: 4px 0 0;
+      }
+      .fields {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        gap: 6px 8px;
+        margin-top: 8px;
+      }
+      .fields span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      input[type="number"] {
+        width: 48px;
+        font: inherit;
+        padding: 2px 4px;
+      }
+      #status {
+        font-size: 12px;
+        min-height: 1em;
+        margin: 4px 0 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>TIME OUT</h1>
+    <label class="appearance">
+      Appearance
+      <select id="theme">
+        <option value="system">System</option>
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+      </select>
+    </label>
+    <div id="timers"></div>
+    <p id="status"></p>
+
+    <script src="defaults.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

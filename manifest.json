@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "TIME OUT",
+  "version": "0.4.0",
+  "description": "Counts down on every page, then replaces the page with TIME OUT.",
+  "permissions": ["storage", "tabGroups"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "TIME OUT settings",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["defaults.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
